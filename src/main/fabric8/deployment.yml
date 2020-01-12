@@ -1,0 +1,96 @@
+metadata:
+  name: ${project.name}
+spec:
+  replicas: 1
+  selector:
+    name: ${project.name}
+  strategy:
+    type: RollingUpdate
+    rollingParams:
+  template:
+    metadata:
+      labels:
+        name: ${project.name}
+    spec:
+      containers:
+      - image: "168.13.2.41:30500/${kubernetes.namespace}/${project.name}:${project.version}"
+        imagePullPolicy: Always
+        name: ${project.name}
+        ports:
+          - containerPort: 8080
+            protocol: TCP
+        env:
+          - name: DATASOURCE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: secret-gasto
+                key: spring.datasource.username
+          - name: DATASOURCE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: secret-gasto
+                key: spring.datasource.password
+          - name: DATASOURCE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-gasto
+                key: spring.datasource.url
+          - name: DATASOURCE_DRIVER
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-gasto
+                key: spring.datasource.driver-class-name
+          - name: DATABASE_PLATFORM
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-gasto
+                key: spring.jpa.database-platform
+          - name: DATASOURCE_TYPE
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-gasto
+                key: spring.datasource.type
+          - name: TOMCAT_INITIAL
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-gasto
+                key: spring.datasource.tomcat.initial-size
+          - name: TOMCAT_MAX_ACTIVE
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-gasto
+                key: spring.datasource.tomcat.max-active
+          - name: TOMCAT_MAX_IDLE
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-gasto
+                key: spring.datasource.tomcat.max-idle
+        volumeMounts:
+          - name: config-volume
+            mountPath: "/config"
+          - name: tz-config
+            mountPath: "/etc/localtime"
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /actuator/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 90
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 90
+      nodeSelector:
+        nodegroup: ${kubernetes.namespace}
+      volumes:
+      - name: config-volume
+        configMap:
+          name: ${project.name}
+          items:
+          - key: application.properties 
+            path: application.properties
+      - name: tz-config
+        hostPath:
+           path: /usr/share/zoneinfo/America/Santiago    
